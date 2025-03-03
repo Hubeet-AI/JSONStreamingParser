@@ -1,0 +1,11 @@
+node_modules
+*edgecase*
+*.log
+*.html
+*.json
+*.txt
+*.md
+*.csv
+*.xlsx
+.sfrd.md
+package-lock.json
