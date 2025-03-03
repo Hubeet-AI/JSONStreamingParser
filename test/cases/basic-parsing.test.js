@@ -100,4 +100,23 @@ describe('Basic JSON Parsing', () => {
 			throw error;
 		}
 	});
+
+
+	it('should parse json with escaped quotes', async () => {
+		const { parser, results } = context;
+		parser.reset();
+		parser.write('this is a text with \\[ corchetes \\] and \\{ llaves \\}');
+		parser.end({ reset: false });
+		await parser.waitForEvents();
+
+		let result = results[results.length - 1];
+		assert.ok(result, 'No result received');
+		assert.ok(result.entities, 'No entities in result');
+
+
+		const [firstEntity] = result.entities;
+		assert.strictEqual(firstEntity.finished, true, 'First entity not finished');
+		assert.strictEqual(firstEntity.value, 'this is a text with [ corchetes ] and { llaves }', 'Text mismatch');
+	});
+
 }); 

@@ -48,6 +48,12 @@ class JSONStreamingParser extends EventEmitter {
 		return this._waitForProcessingComplete();
 	}
 
+	isEscaped(buffer, i) {
+		let count = 0, j = i - 1;
+		while (j >= 0 && buffer[j] === '\\') { count++; j--; }
+		return count % 2 === 1;
+	}
+
 	_processBuffer() {
 		if (this._processing) return;
 		this._processing = true;
@@ -60,7 +66,21 @@ class JSONStreamingParser extends EventEmitter {
 				const char = self.buffer[i];
 				if (self.mode === "TEXT") {
 					if (self.currentState === STATE_TEXT) {
-						if (char === "{" || char === "[") {
+						// Si hay backslash seguido de {, [, } o ], agregar solo el siguiente carácter.
+						if (
+							char === "\\" &&
+							i + 1 < len &&
+							(self.buffer[i + 1] === "{" ||
+								self.buffer[i + 1] === "[" ||
+								self.buffer[i + 1] === "}" ||
+								self.buffer[i + 1] === "]")
+						) {
+							self.textBuffer += self.buffer[i + 1];
+							i += 2;
+							continue;
+						}
+						// Si se encuentra { o [ sin escape, se cambia a modo JSON.
+						if ((char === "{" || char === "[") && !self.isEscaped(self.buffer, i)) {
 							if (self.textBuffer) {
 								self.entities.push({ finished: true, value: self.textBuffer });
 								self.textBuffer = "";
@@ -398,6 +418,8 @@ class JSONStreamingParser extends EventEmitter {
 			});
 		});
 	}
+
+
 }
 
 module.exports = JSONStreamingParser;
