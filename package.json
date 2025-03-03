@@ -21,6 +21,10 @@
     "test:coverage": "nyc mocha test/**/*.test.js",
     "open:html": "open example/index.html"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Hubeet-AI/JSONStreamingParser.git"
+  },
   "author": "www.hubeet.com",
   "license": "MIT",
   "description": "A streaming JSON parser for efficient parsing of large JSON objects, with the ability to emit partial objects as they are parsed. Contributed by [www.hubeet.com](https://www.hubeet.com)"
