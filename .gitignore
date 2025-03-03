@@ -4,7 +4,6 @@ node_modules
 *.html
 *.json
 *.txt
-*.md
 *.csv
 *.xlsx
 .sfrd.md
