@@ -37,7 +37,7 @@ class JSONStreamingParser extends EventEmitter {
 		this.currentToken = "";
 		this.currentKey = null;
 		this.entities = []; // Completed entities
-		this.currentEntity = { finished: false, value: null, id: null }; // Current JSON entity
+		this.currentEntity = { finished: false, value: null, id: null };
 		this.hasEndBeenCalled = false;
 		this._processing = false;
 	}
@@ -60,7 +60,6 @@ class JSONStreamingParser extends EventEmitter {
 		let i = this.pos;
 		const self = this;
 		function processChunk() {
-			const startTime = Date.now();
 			const len = self.buffer.length;
 			while (i < len) {
 				const char = self.buffer[i];
@@ -97,24 +96,28 @@ class JSONStreamingParser extends EventEmitter {
 				} else if (self.mode === "JSON") {
 					switch (self.currentState) {
 						case STATE_START:
-							if (/\s/.test(char)) { i++; }
-							else if (char === "{") {
+							if (/\s/.test(char)) {
+								i++;
+							} else if (char === "{") {
 								const obj = {};
 								self.currentEntity.value = obj;
-								self.stack.push({ type: "object", value: obj });
+								self.stack.push({ type: "object", value: obj, parent: null, key: null });
 								self.currentState = STATE_OBJECT;
 								i++;
 							} else if (char === "[") {
 								const arr = [];
 								self.currentEntity.value = arr;
-								self.stack.push({ type: "array", value: arr });
+								self.stack.push({ type: "array", value: arr, parent: null, key: null });
 								self.currentState = STATE_ARRAY;
 								i++;
-							} else { i++; }
+							} else {
+								i++;
+							}
 							break;
 						case STATE_OBJECT:
-							if (/\s/.test(char)) { i++; }
-							else if (char === "}") {
+							if (/\s/.test(char)) {
+								i++;
+							} else if (char === "}") {
 								self.stack.pop();
 								if (self.stack.length === 0) {
 									self.currentEntity.finished = true;
@@ -133,8 +136,11 @@ class JSONStreamingParser extends EventEmitter {
 								self.currentKey = char;
 								self.currentState = STATE_KEY_UNQUOTED;
 								i++;
-							} else if (char === ",") { i++; }
-							else { i++; }
+							} else if (char === ",") {
+								i++;
+							} else {
+								i++;
+							}
 							break;
 						case STATE_KEY_QUOTED:
 							if (char === "\\") {
@@ -161,13 +167,19 @@ class JSONStreamingParser extends EventEmitter {
 							}
 							break;
 						case STATE_AFTER_KEY:
-							if (/\s/.test(char)) { i++; }
-							else if (char === ":") { self.currentState = STATE_VALUE; i++; }
-							else { self.currentState = STATE_VALUE; }
+							if (/\s/.test(char)) {
+								i++;
+							} else if (char === ":") {
+								self.currentState = STATE_VALUE;
+								i++;
+							} else {
+								self.currentState = STATE_VALUE;
+							}
 							break;
 						case STATE_VALUE:
-							if (/\s/.test(char)) { i++; }
-							else if (char === '"') {
+							if (/\s/.test(char)) {
+								i++;
+							} else if (char === '"') {
 								self.currentToken = "";
 								self.currentState = STATE_VALUE_QUOTED;
 								i++;
@@ -176,11 +188,12 @@ class JSONStreamingParser extends EventEmitter {
 								const container = self.stack[self.stack.length - 1];
 								if (container.type === "object") {
 									container.value[self.currentKey] = obj;
+									self.stack.push({ type: "object", value: obj, parent: container, key: self.currentKey });
 									self.currentKey = null;
 								} else if (container.type === "array") {
 									container.value.push(obj);
+									self.stack.push({ type: "object", value: obj, parent: container, key: container.value.length - 1 });
 								}
-								self.stack.push({ type: "object", value: obj });
 								self.currentState = STATE_OBJECT;
 								i++;
 							} else if (char === "[") {
@@ -188,11 +201,12 @@ class JSONStreamingParser extends EventEmitter {
 								const container = self.stack[self.stack.length - 1];
 								if (container.type === "object") {
 									container.value[self.currentKey] = arr;
+									self.stack.push({ type: "array", value: arr, parent: container, key: self.currentKey });
 									self.currentKey = null;
 								} else if (container.type === "array") {
 									container.value.push(arr);
+									self.stack.push({ type: "array", value: arr, parent: container, key: container.value.length - 1 });
 								}
-								self.stack.push({ type: "array", value: arr });
 								self.currentState = STATE_ARRAY;
 								i++;
 							} else if (/[0-9\-]/.test(char)) {
@@ -203,7 +217,9 @@ class JSONStreamingParser extends EventEmitter {
 								self.currentToken = char;
 								self.currentState = STATE_VALUE_LITERAL;
 								i++;
-							} else { i++; }
+							} else {
+								i++;
+							}
 							break;
 						case STATE_VALUE_QUOTED:
 							if (char === "\\") {
@@ -266,8 +282,9 @@ class JSONStreamingParser extends EventEmitter {
 							}
 							break;
 						case STATE_ARRAY:
-							if (/\s/.test(char)) { i++; }
-							else if (char === "]") {
+							if (/\s/.test(char)) {
+								i++;
+							} else if (char === "]") {
 								self.stack.pop();
 								if (self.stack.length === 0) {
 									self.currentEntity.finished = true;
@@ -284,8 +301,9 @@ class JSONStreamingParser extends EventEmitter {
 							}
 							break;
 						case STATE_AFTER_VALUE:
-							if (/\s/.test(char)) { i++; }
-							else if (char === ",") {
+							if (/\s/.test(char)) {
+								i++;
+							} else if (char === ",") {
 								const container = self.stack[self.stack.length - 1];
 								self.currentState = (container.type === "object") ? STATE_OBJECT : STATE_ARRAY;
 								i++;
@@ -303,14 +321,15 @@ class JSONStreamingParser extends EventEmitter {
 									self.currentState = STATE_AFTER_VALUE;
 								}
 								i++;
-							} else { i++; }
+							} else {
+								i++;
+							}
 							break;
 						default:
 							i++;
 							break;
 					}
 				}
-				// Removed time-slice check to allow continuous processing.
 			}
 			self.pos = i;
 			if (i >= self.buffer.length) {
@@ -339,13 +358,12 @@ class JSONStreamingParser extends EventEmitter {
 		return this._waitForProcessingComplete();
 	}
 
-	// Modified getPreview to emit partial (intermediate) values.
+	// getPreview emite valores intermedios con la propiedad en curso ubicada correctamente.
 	getPreview() {
 		const preview = this.entities.slice();
 		if (this.mode === "TEXT" && this.textBuffer) {
 			preview.push({ finished: true, value: this.textBuffer });
 		} else if (this.mode === "JSON" && !this.currentEntity.finished) {
-			// If in the middle of reading a quoted value, simulate a temporary closure.
 			if (this.currentState === STATE_VALUE_QUOTED) {
 				let partialValue;
 				try {
@@ -353,18 +371,20 @@ class JSONStreamingParser extends EventEmitter {
 				} catch (e) {
 					partialValue = this.currentEntity.value;
 				}
-				if (this.stack.length > 0) {
-					const container = this.stack[this.stack.length - 1];
-					if (container.type === "object" && this.currentKey !== null) {
-						partialValue[this.currentKey] = this.currentToken;
-					} else if (container.type === "array") {
-						// For arrays, append currentToken if not already appended.
-						if (!Array.isArray(partialValue)) {
-							// Do nothing
-						} else {
-							if (partialValue.length === 0 || partialValue[partialValue.length - 1] !== this.currentToken) {
-								partialValue.push(this.currentToken);
-							}
+				if (this.stack.length > 0 && this.currentKey !== null) {
+					let currentClone = partialValue;
+					for (let i = 1; i < this.stack.length; i++) {
+						const entry = this.stack[i];
+						if (entry.key !== null && currentClone) {
+							currentClone = currentClone[entry.key];
+						}
+					}
+					if (this.stack[this.stack.length - 1].type === "object") {
+						currentClone[this.currentKey] = this.currentToken;
+					} else if (this.stack[this.stack.length - 1].type === "array") {
+						if (!Array.isArray(currentClone)) currentClone = [this.currentToken];
+						else if (currentClone.length === 0 || currentClone[currentClone.length - 1] !== this.currentToken) {
+							currentClone.push(this.currentToken);
 						}
 					}
 				}
@@ -418,8 +438,6 @@ class JSONStreamingParser extends EventEmitter {
 			});
 		});
 	}
-
-
 }
 
 module.exports = JSONStreamingParser;
