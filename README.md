@@ -30,6 +30,10 @@ pnpm add json-streaming-parser
 
 ## 📚 Usage
 
+### Online HTML Demo
+
+[Online HTML Demo](https://hubeet-ai.github.io/JSONStreamingParser/example/index.html)
+
 ### Basic Example
 
 ```typescript

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>JSON Streaming Parser Demo</title>
+	<link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet" />
+	<style>
+		:root {
+			--primary-color: #0066cc;
+			--primary-hover: #0052a3;
+			--border-color: #ddd;
+			--background: #f5f5f5;
+			--font: 'Roboto', sans-serif;
+		}
+
+		*,
+		*::before,
+		*::after {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		body {
+			font-family: var(--font);
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 20px;
+			background: #fff;
+			color: #333;
+			line-height: 1.6;
+		}
+
+		header,
+		footer {
+			text-align: center;
+			margin-bottom: 20px;
+		}
+
+		.container {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+			gap: 20px;
+		}
+
+		.panel {
+			background: #fff;
+			border: 1px solid var(--border-color);
+			border-radius: 8px;
+			padding: 15px;
+			box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+		}
+
+		pre {
+			white-space: pre-wrap;
+			word-wrap: break-word;
+			background: var(--background);
+			padding: 10px;
+			border-radius: 4px;
+			min-height: 200px;
+		}
+
+		button {
+			background: var(--primary-color);
+			color: #fff;
+			border: none;
+			padding: 10px 20px;
+			border-radius: 4px;
+			cursor: pointer;
+			transition: background 0.3s ease;
+			margin-right: 10px;
+		}
+
+		button:hover {
+			background: var(--primary-hover);
+		}
+
+		textarea {
+			width: 100%;
+			min-height: 150px;
+			padding: 10px;
+			border: 1px solid var(--border-color);
+			border-radius: 4px;
+			margin-bottom: 10px;
+			font-family: var(--font);
+			resize: vertical;
+		}
+
+		input[type="number"] {
+			padding: 5px;
+			margin-right: 10px;
+			border: 1px solid var(--border-color);
+			border-radius: 4px;
+		}
+
+		@media (max-width: 600px) {
+			body {
+				padding: 10px;
+			}
+
+			button {
+				margin-bottom: 10px;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<header>
+		<h1>JSON Streaming Parser Demo</h1>
+		<p>Visualize real-time JSON data parsing.</p>
+	</header>
+
+	<main class="container">
+		<section class="panel">
+			<h3>Input Data</h3>
+			<button id="start">▶️ Start Stream</button>
+			<button id="reset">🔄 Reset</button>
+			<div style="margin:10px 0;">
+				<label for="delay">Delay (ms): </label>
+				<input type="number" id="delay" value="50" min="0" style="width:80px;">
+				<label for="chunkSize">Chunk Size: </label>
+				<input type="number" id="chunkSize" value="20" min="1" style="width:80px;">
+			</div>
+			<textarea id="input" placeholder="Type or paste JSON here to see live parsing..."></textarea>
+			<pre id="input-history"></pre>
+		</section>
+		<section class="panel">
+			<h3>Parser Output</h3>
+			<pre id="output"></pre>
+		</section>
+	</main>
+
+	<footer>
+		<p>Powered by <a href="https://www.solunika.com" target="_blank" rel="noopener noreferrer">Solúnika</a> -
+			Enterprise Software Solutions</p>
+	</footer>
+
+	<script src="../src/index.js"></script>
+	<script>
+		let currentParser = null;
+		let lastInputValue = '';
+		let streamInterval = null;
+
+		function simulateStream(parser, text, delay, chunkSize) {
+			if (streamInterval) clearInterval(streamInterval);
+			const inputElement = document.getElementById('input');
+			const inputHistory = document.getElementById('input-history');
+			inputHistory.textContent = '';
+			inputElement.value = text;
+			lastInputValue = text;
+			const fragments = [];
+			for (let i = 0; i < text.length; i += chunkSize) {
+				fragments.push(text.substring(i, i + chunkSize));
+			}
+			let index = 0;
+			streamInterval = setInterval(() => {
+				if (index < fragments.length) {
+					const fragment = fragments[index];
+					try {
+						inputHistory.textContent += fragment;
+						parser.write(fragment);
+						index++;
+					} catch (error) {
+						console.error("Error processing fragment:", error);
+						clearInterval(streamInterval);
+					}
+				} else {
+					clearInterval(streamInterval);
+					streamInterval = null;
+					try { parser.end(); } catch (error) { console.error("Error ending parser:", error); }
+				}
+			}, delay);
+		}
+
+		function resetParser() {
+			if (streamInterval) { clearInterval(streamInterval); streamInterval = null; }
+			if (currentParser) { try { currentParser.end(); } catch (e) { console.error(e); } }
+			document.getElementById('output').textContent = '';
+			document.getElementById('input-history').textContent = '';
+			currentParser = new JSONStreamingParser();
+			currentParser.on('updateObject', obj => {
+				try { document.getElementById('output').textContent = JSON.stringify(obj, null, 2); }
+				catch (e) { console.error(e); }
+			});
+			return currentParser;
+		}
+
+		document.getElementById('start').addEventListener('click', () => {
+			currentParser = resetParser();
+			const inputText = document.getElementById('input').value;
+			const delay = parseInt(document.getElementById('delay').value, 10);
+			const chunkSize = parseInt(document.getElementById('chunkSize').value, 10);
+			simulateStream(currentParser, inputText, delay, chunkSize);
+		});
+
+		document.getElementById('reset').addEventListener('click', () => {
+			resetParser();
+			document.getElementById('input').value = '';
+			lastInputValue = '';
+		});
+
+		document.getElementById('input').addEventListener('input', function (e) {
+			const currentValue = e.target.value;
+			if (!currentParser) currentParser = resetParser();
+			const newChunk = currentValue.substring(lastInputValue.length);
+			if (currentValue.length < lastInputValue.length) {
+				resetParser();
+				try {
+					currentParser.write(currentValue);
+					document.getElementById('input-history').textContent = currentValue;
+				} catch (error) { console.error("Error processing input after deletion:", error); }
+			} else if (newChunk.length > 0) {
+				try {
+					currentParser.write(newChunk);
+					document.getElementById('input-history').textContent += newChunk;
+				} catch (error) { console.error("Error processing new chunk:", error); }
+			}
+			lastInputValue = currentValue;
+		});
+
+		window.addEventListener('DOMContentLoaded', () => {
+			currentParser = resetParser();
+			const inputElement = document.getElementById('input');
+			const exampleJSON = `{
+  "example": "This is a preloaded example",
+  "instructions": "Type or paste your JSON here to see live parsing",
+  "features": ["streaming", "real-time", "visualization"]
+}`;
+			inputElement.value = exampleJSON;
+			lastInputValue = exampleJSON;
+			try {
+				currentParser.write(exampleJSON);
+				document.getElementById('input-history').textContent = exampleJSON;
+			} catch (error) { console.error("Error processing preloaded example:", error); }
+		});
+	</script>
+</body>
+
+</html>
