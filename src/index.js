@@ -65,7 +65,7 @@ class JSONStreamingParser extends EventEmitter {
 				const char = self.buffer[i];
 				if (self.mode === "TEXT") {
 					if (self.currentState === STATE_TEXT) {
-						// Si hay backslash seguido de {, [, } o ], agregar solo el siguiente carácter.
+						// If there is a backslash followed by {, [, } or ], add only the next character.
 						if (
 							char === "\\" &&
 							i + 1 < len &&
@@ -78,7 +78,7 @@ class JSONStreamingParser extends EventEmitter {
 							i += 2;
 							continue;
 						}
-						// Si se encuentra { o [ sin escape, se cambia a modo JSON.
+						// On encountering { or [ without escape, switch to JSON mode.
 						if ((char === "{" || char === "[") && !self.isEscaped(self.buffer, i)) {
 							if (self.textBuffer) {
 								self.entities.push({ finished: true, value: self.textBuffer });
@@ -145,9 +145,16 @@ class JSONStreamingParser extends EventEmitter {
 						case STATE_KEY_QUOTED:
 							if (char === "\\") {
 								if (i + 1 < len) {
-									self.currentKey += self.buffer[i + 1];
+									let nextChar = self.buffer[i + 1];
+									// Handle escape sequences properly.
+									if (nextChar === 'n') self.currentKey += "\n";
+									else if (nextChar === 'r') self.currentKey += "\r";
+									else if (nextChar === 't') self.currentKey += "\t";
+									else self.currentKey += nextChar;
 									i += 2;
-								} else { i = len; }
+								} else {
+									i = len;
+								}
 							} else if (char === '"') {
 								self.currentState = STATE_AFTER_KEY;
 								i++;
@@ -224,9 +231,15 @@ class JSONStreamingParser extends EventEmitter {
 						case STATE_VALUE_QUOTED:
 							if (char === "\\") {
 								if (i + 1 < len) {
-									self.currentToken += self.buffer[i + 1];
+									let nextChar = self.buffer[i + 1];
+									if (nextChar === 'n') self.currentToken += "\n";
+									else if (nextChar === 'r') self.currentToken += "\r";
+									else if (nextChar === 't') self.currentToken += "\t";
+									else self.currentToken += nextChar;
 									i += 2;
-								} else { i = len; }
+								} else {
+									i = len;
+								}
 							} else if (char === '"') {
 								const val = self.currentToken;
 								self.currentToken = "";
@@ -358,7 +371,7 @@ class JSONStreamingParser extends EventEmitter {
 		return this._waitForProcessingComplete();
 	}
 
-	// getPreview emite valores intermedios con la propiedad en curso ubicada correctamente.
+	// getPreview emits intermediate values with the current property properly placed.
 	getPreview() {
 		const preview = this.entities.slice();
 		if (this.mode === "TEXT" && this.textBuffer) {
