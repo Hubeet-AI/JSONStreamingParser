@@ -27,5 +27,30 @@
   },
   "author": "www.hubeet.com",
   "license": "MIT",
-  "description": "A streaming JSON parser for efficient parsing of large JSON objects, with the ability to emit partial objects as they are parsed. Contributed by [www.hubeet.com](https://www.hubeet.com)"
+  "description": "A streaming JSON parser for efficient parsing of large JSON objects, with the ability to emit partial objects as they are parsed. Contributed by [www.hubeet.com](https://www.hubeet.com)",
+  "keywords": [
+    "json",
+    "streaming",
+    "parser",
+    "large",
+    "json",
+    "llm parser",
+    "json streaming parser",
+    "json streaming",
+    "json parser",
+    "json",
+    "json streaming parser",
+    "token by token parser",
+    "llm streaming parser",
+    "hubeet.com",
+    "hubeet",
+    "solunika"
+  ],
+  "homepage": "https://www.hubeet.com",
+  "bugs": {
+    "url": "https://github.com/Hubeet-AI/JSONStreamingParser/issues"
+  },
+  "contributors": [
+    "Hubeet AI <devops@hubeet.com>"
+  ]
 }
