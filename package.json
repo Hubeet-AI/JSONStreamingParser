@@ -1,6 +1,6 @@
 {
   "name": "json-streaming-parser",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
